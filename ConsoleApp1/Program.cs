@@ -30,7 +30,6 @@ namespace InvestCloudDemo
             watch.Stop();
             Console.WriteLine($"init value: {initResponse.value}.  init ms: {watch.ElapsedMilliseconds}");
 
-
             // get matrix data
             watch = System.Diagnostics.Stopwatch.StartNew();
             var getDataAsync = GetDataAsync(matrixSize, apiUri);
@@ -89,7 +88,6 @@ namespace InvestCloudDemo
             watch.Stop();
             Console.WriteLine($"download ms: {watch.ElapsedMilliseconds}");
 
-
             // perform multiplication
             watch = System.Diagnostics.Stopwatch.StartNew();
             string AxB = MultiplyAndSerialize(AmatrixRow, BmatrixCol, matrixSize);
@@ -99,14 +97,13 @@ namespace InvestCloudDemo
                 Console.WriteLine($"AxBmatrix: {AxB}");
             }
 
+            // generate hash
             string md5 = CalculateMD5Hash(AxB);
             watch.Stop();
             Console.WriteLine($"hash: {md5}  . multiplication and hash ms: {watch.ElapsedMilliseconds}");
             
-            
-
             // validate response with server
-            JSONObj = InvestCloudAPI.Post(apiUri + "numbers/validate", md5, "text/json");
+            JSONObj = InvestCloudAPI.Post(apiUri + "numbers/validate", md5, "text/json;charset=utf-8");
             ValidateResponse validateResponse = JsonConvert.DeserializeObject<ValidateResponse>(JSONObj);
             Console.WriteLine($"result: {validateResponse.value}");
             watchOverall.Stop();
@@ -148,11 +145,11 @@ namespace InvestCloudDemo
                 byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(input);
                 byte[] hashBytes = md5.ComputeHash(inputBytes);
 
-                // Convert the byte array to hexadecimal string
+                // Convert the byte array to decimal string
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < hashBytes.Length; i++)
                 {
-                    sb.Append(hashBytes[i].ToString("X2"));
+                    sb.Append(hashBytes[i].ToString());
                 }
                 return sb.ToString();
             }
@@ -167,6 +164,7 @@ namespace InvestCloudDemo
             // setup an async task list to loop thru completed requests
             List<Task> TaskList = new List<Task>();
             
+            // download all data at once
             for (int i = 0; i < matrixSize; i++)
             {
                 // make requests to row and column data
@@ -179,7 +177,7 @@ namespace InvestCloudDemo
                 
             }
 
-            // wait for tasks to finish
+            // wait for downloads to finish
             Task.WaitAll(TaskList.ToArray());
 
             // loop thru tasks and store result in their respective matrices
