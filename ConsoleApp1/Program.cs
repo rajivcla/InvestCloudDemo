@@ -28,7 +28,8 @@ namespace InvestCloudDemo
             var JSONObj  = InvestCloudAPI.Get(apiUri + "numbers/init/" + matrixSize);
             InitResponse initResponse = JsonConvert.DeserializeObject<InitResponse>(JSONObj);
             watch.Stop();
-            Console.WriteLine($"init value: {initResponse.value}.  init ms: {watch.ElapsedMilliseconds}");
+            Console.WriteLine($"init value: {initResponse.value}");
+            Console.WriteLine($"init time: { watch.ElapsedMilliseconds} ms");
 
             // get matrix data
             watch = System.Diagnostics.Stopwatch.StartNew();
@@ -86,7 +87,7 @@ namespace InvestCloudDemo
                 }
             }
             watch.Stop();
-            Console.WriteLine($"download ms: {watch.ElapsedMilliseconds}");
+            Console.WriteLine($"download time: {watch.ElapsedMilliseconds} ms");
 
             // perform multiplication
             watch = System.Diagnostics.Stopwatch.StartNew();
@@ -100,14 +101,15 @@ namespace InvestCloudDemo
             // generate hash
             string md5 = CalculateMD5Hash(AxB);
             watch.Stop();
-            Console.WriteLine($"hash: {md5}  . multiplication and hash ms: {watch.ElapsedMilliseconds}");
+            Console.WriteLine($"hash: {md5}");
+            Console.WriteLine($"multiplication and hash time: {watch.ElapsedMilliseconds} ms");
             
             // validate response with server
             JSONObj = InvestCloudAPI.Post(apiUri + "numbers/validate", md5, "text/json;charset=utf-8");
             ValidateResponse validateResponse = JsonConvert.DeserializeObject<ValidateResponse>(JSONObj);
             Console.WriteLine($"result: {validateResponse.value}");
             watchOverall.Stop();
-            Console.WriteLine($"total ms: {watchOverall.ElapsedMilliseconds}");
+            Console.WriteLine($"total time: {watchOverall.ElapsedMilliseconds} ms");
             Console.WriteLine("press any key to exit");
             Console.ReadLine();
         }
