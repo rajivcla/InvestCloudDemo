@@ -15,6 +15,7 @@ namespace InvestCloudDemo
         static void Main(string[] args)
         {
 
+            System.Net.ServicePointManager.DefaultConnectionLimit = 200;
             int matrixSize = 1000;
             bool verbose = false;
             int[][] AmatrixRow;
@@ -33,7 +34,7 @@ namespace InvestCloudDemo
 
             // get matrix data
             watch = System.Diagnostics.Stopwatch.StartNew();
-            var getDataAsync = GetDataAsync(matrixSize, apiUri);
+            var getDataAsync = GetDataAsync2(matrixSize, apiUri);
             AmatrixRow = getDataAsync.Item1;
             BmatrixCol = getDataAsync.Item2;
             if (verbose)
@@ -91,7 +92,7 @@ namespace InvestCloudDemo
 
             // perform multiplication
             watch = System.Diagnostics.Stopwatch.StartNew();
-            string AxB = MultiplyAndSerialize(AmatrixRow, BmatrixCol, matrixSize);
+            string AxB = MultiplyAndSerialize2(AmatrixRow, BmatrixCol, matrixSize);
             if (verbose)
             {
                 Console.WriteLine();
@@ -114,19 +115,20 @@ namespace InvestCloudDemo
             Console.ReadLine();
         }
 
-        public static string MultiplyAndSerialize(int[][] AmatrixRow, int[][] BmatrixCol, int matrixSize)
+        public static string MultiplyAndSerialize2(int[][] AmatrixRow, int[][] BmatrixCol, int matrixSize)
         {
-            StringBuilder result = new StringBuilder();
-            for (int i = 0; i < matrixSize; i++)
-            {
-                for (int j = 0; j < matrixSize; j++)
-                {
-                    // get dot product of A (row) * B (col)
-                    result.Append(DotProduct(AmatrixRow[i], BmatrixCol[j], matrixSize));
-                }
-            }
-            return result.ToString();
+            string[] resultMatrix = new string[matrixSize* matrixSize];
+            Parallel.For(0, matrixSize, i => {
+                Parallel.For(0, matrixSize, j =>
+                  {
+                      resultMatrix[matrixSize * i + j] = DotProduct(AmatrixRow[i], BmatrixCol[j], matrixSize);
+                  });
+            });
+
+
+            return String.Join(string.Empty, resultMatrix);
         }
+
 
         public static string DotProduct(int[] ARow, int[] BCol, int matrixSize)
         {
@@ -202,16 +204,49 @@ namespace InvestCloudDemo
             return new Tuple<int[][], int[][]>(AmatrixRow, BmatrixCol);
         }
 
+        public static Tuple<int[][], int[][]> GetDataAsync2(int matrixSize, string apiUri)
+        {
+            int[][] AmatrixRow = new int[matrixSize][];
+            int[][] BmatrixCol = new int[matrixSize][];
 
-        
+            // setup an async task list to loop thru completed requests
+            List<Task> TaskList = new List<Task>();
 
-        
+            // download all data at once
+            for (int i = 0; i < matrixSize; i++)
+            {
+                // make requests to row and column data
+                var getMatrixARowTask = InvestCloudAPI.GetAsync(apiUri + "numbers/A/row/", i, true);
 
-        
+                getMatrixARowTask.ContinueWith(t => {
+                    string resultMatrixARow = t.Result.Item1;
+                    DataResponse resultMatrixAResponse = JsonConvert.DeserializeObject<DataResponse>(resultMatrixARow);
+                    AmatrixRow[t.Result.Item2] = resultMatrixAResponse.value;
+                });
 
-        
+                TaskList.Add(getMatrixARowTask);
 
-        
+                // matrix B are stored as columns because it makes the AxB multiply matrix easier
+                var getMatrixBColTask = InvestCloudAPI.GetAsync(apiUri + "numbers/B/row/", i, false);
+                getMatrixBColTask.ContinueWith(t => {
+                    string resultMatrixBCol = t.Result.Item1;
+                    DataResponse resultMatrixBResponse = JsonConvert.DeserializeObject<DataResponse>(resultMatrixBCol);
+                    BmatrixCol[t.Result.Item2] = resultMatrixBResponse.value;
+                });
+
+                TaskList.Add(getMatrixBColTask);
+
+
+            }
+
+            // wait for downloads to finish
+            Task.WaitAll(TaskList.ToArray());
+
+            // loop thru tasks and store result in their respective matrices
+           
+
+            return new Tuple<int[][], int[][]>(AmatrixRow, BmatrixCol);
+        }
 
     }
 
